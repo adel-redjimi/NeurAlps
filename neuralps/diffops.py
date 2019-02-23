@@ -87,6 +87,16 @@ class Linear(DifferentiableOperation):
 
         return np.dot(dy, self.W)
 
+    def clear_gradients(self):
+        self.db = np.zeros_like(self.b)
+        self.dW = np.zeros_like(self.W)
+
+    def acc_backward(self, dy):
+        self.db += np.mean(dy, axis=0)
+
+        x = self.last_x
+        self.dW += np.dot(x.T, dy).T / x.shape[0]
+
     def sgd_update(self, learning_rate):
         """ Computes the SGD update for W and b. """
         self.W -= learning_rate * self.dW
@@ -168,3 +178,29 @@ class DropOut(DifferentiableOperation):
 
     def params(self):
         return (self.prob,)
+
+
+class FullForward(DifferentiableOperation):
+    def __init__(self, size_in, size_out, activation):
+        self.size_in = size_in
+        self.size_out = size_out
+
+        self.linear = Linear(size_in, size_out)
+        self.activation = activation
+
+    def forward(self, x, train=False):
+        """ Returns [x, activation(Wx+b)] """
+        self.last_x = x
+        #self.linear.clear_gradients()
+        
+        a = self.linear.forward(x)
+        y = self.activation.forward(a)
+
+        return np.hstack((x, y))
+
+    def backward(self, d):
+        """ d: partial w.r.t. [x  , activation(Wx+b)]"""
+        wrt_lin = self.activation.backward(d[:,-self.size_out:])
+        wrt_x = self.linear.backward(wrt_lin)
+
+        return d[:, :self.size_in] + wrt_x

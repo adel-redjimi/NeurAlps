@@ -190,5 +190,3 @@ class Model:
         )
 
         return Model(*ops)
-
-
